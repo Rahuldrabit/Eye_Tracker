@@ -1,0 +1,137 @@
+\\documentclass[sigconf]{acmart}
+
+\\usepackage{booktabs}
+\\usepackage{amsmath}
+\\usepackage{amsfonts}
+\\usepackage{graphicx}
+\\usepackage{microtype}
+\\usepackage{subcaption}
+
+\\AtBeginDocument{%
+  \\providecommand\\BibTeX{{%
+    Bib\\TeX}}}
+
+\\setcopyright{acmlicensed}
+\\copyrightyear{2027}
+\\acmYear{2027}
+\\acmConference[ETRA '27]{2027 Symposium on Eye Tracking Research and Applications}{May 2027}{Stuttgart, Germany}
+
+\\title{OpenGaze: Head-Invariant In-Browser Gaze Estimation with In-Situ Online Fine-Tuning and Zero-DOM Bayesian Reading Telemetry}
+
+\\author{Rahul Drabit}
+\\affiliation{%
+  \\institution{Cognitive Vision and Interaction Lab}
+  \\country{Independent Researcher}
+}
+\\email{contact@rahuldrabit.dev}
+
+\\begin{abstract}
+Commodity webcam-based eye tracking has long suffered from three foundational failure modes: (1) acute vulnerability to head sway and posture drift, where a 1\\,cm head translation can overpower the entire eye rotation signal; (2) numerical ill-conditioning in classical polynomial calibration mappings ($\\kappa(A^T A) > 10^5$), causing runaway overfitting and jitter; and (3) intrusive DOM manipulation (such as wrapping text in thousands of \\texttt{<span>} elements) that distorts web page rendering during reading studies. 
+
+We present \\textbf{OpenGaze}, an open-source, high-precision web eye-tracking framework that fundamentally resolves these bottlenecks. OpenGaze introduces: (1) an intrinsic \\textit{canthal vector projection} that decouples 1st-order head translation, distance scaling, and roll tilt in closed form; (2) a 28-term physics-informed feature space solved via a multi-task \\textit{ElasticNet coordinate descent} engine; (3) an \\textit{in-situ continuous fine-tuning engine} that harvests passive eye-hand foveation pairs during clicks, anchored by an elastic Bayesian prior to prevent catastrophic divergence; and (4) a \\textit{zero-DOM hierarchical Bayesian text attributor} incorporating the human Preferred Viewing Location (PVL = 0.4) using non-invasive \\texttt{Range.getClientRects()}. Empirical multi-session evaluations demonstrate that OpenGaze reduces held-out Grouped Cross-Validation RMS error from 197.3\\,px (WebGazer baseline) to \\textbf{138.8\\,px} (reaching 101.0\\,px on optimal sessions) with sub-millisecond per-frame latency ($0.837\\,$ms). The framework is fully decoupled, production-ready, and available at \\url{https://github.com/Rahuldrabit/Eye_Tracker}.
+\\end{abstract}
+
+\\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10003120.10003121.10003128</concept_id>
+       <concept_desc>Human-centered computing~Interaction techniques</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+   <concept>
+       <concept_id>10010147.10010178.10010224</concept_id>
+       <concept_desc>Computing methodologies~Computer vision</concept_desc>
+       <concept_significance>500</concept_significance>
+   </concept>
+</ccs2012>
+\\end{CCSXML}
+
+\\ccsdesc[500]{Human-centered computing~Interaction techniques}
+\\ccsdesc[500]{Computing methodologies~Computer vision}
+
+\\keywords{Eye tracking, webcam gaze estimation, online adaptation, Bayesian attribution, reading telemetry, head-pose invariance.}
+
+\\maketitle
+
+\\section{Introduction}
+Eye tracking in consumer browsers unlocks transformative possibilities for psychological research, accessible computing, cognitive diagnostics, and e-learning. While commercial infrared eye trackers provide sub-degree foveal resolution, their prohibitive cost and specialized hardware prevent broad ecological deployment. Conversely, web eye tracking frameworks such as WebGazer.js \\cite{papoutsaki2016webgazer} democratized access using standard webcams, but remain notoriously fragile under real-world usage.
+
+In practical web deployment, three compounding pathologies cripple existing webcam trackers:
+\\begin{enumerate}
+    \\item \\textbf{Head-Movement Signal Dominance}: Image-space landmarks (such as those from MediaPipe FaceMesh) normalize coordinates to the video frame. A 1\\,cm lateral head shift moves the iris landmark by $\\sim 0.0175$ normalized units, dwarfing the biological gaze rotation across an entire 34\\,cm monitor ($\sim 0.0125$ units). As a result, breathing sway or minor posture adjustment immediately ruins gaze calibration.
+    \\item \\textbf{Ill-Conditioned Calibration Mappings}: Classical quadratic polynomial models fit terms $[1, x, y, xy, x^2, y^2]$ on tightly clustered normalized iris coordinates. The Gram matrix $A^T A$ exhibits condition numbers exceeding $\\kappa > 10^5$, amplifying sub-pixel landmark jitter into catastrophic gaze dispersion.
+    \\item \\textbf{Temporal Posture Decay (Drift)}: A single 12-point calibration ceremony decays within 3--5 minutes as the participant settles or slouches. Existing systems lack continuous, self-stabilizing mechanisms to adjust weights online without disrupting the user.
+\\end{enumerate}
+
+To overcome these barriers, we present \\textbf{OpenGaze}, a modular framework engineered for robust in-browser eye tracking.
+
+\\section{Mathematical Formulation}
+
+\\subsection{Head-Invariant Canthal Vector Projection}
+For each eye, let $p_{\\text{inner}}, p_{\\text{outer}} \\in \\mathbb{R}^2$ denote the inner and outer canthal landmarks (which are rigidly fixed to the skull), and let $p_{\\text{iris}} \\in \\mathbb{R}^2$ be the detected iris center. All landmarks are scaled to absolute pixel space ($x \\cdot W, y \\cdot H$) to eliminate aspect-ratio distortion. We define:
+\\begin{align}
+    m &= \\frac{p_{\\text{inner}} + p_{\\text{outer}}}{2} \\quad \\text{(Canthal midpoint)} \\\\
+    w &= \\|p_{\\text{outer}} - p_{\\text{inner}}\\|_2 \\quad \\text{(Inter-canthal width)} \\\\
+    \\mathbf{u} &= s \\cdot \\frac{p_{\\text{outer}} - p_{\\text{inner}}}{w}, \\quad s = \\begin{cases} -1 & \\text{left eye} \\\\ +1 & \\text{right eye} \\end{cases} \\\\
+    \\mathbf{v} &= (-u_y, u_x)^T \\quad \\text{(Orthonormal vertical axis)}
+\\end{align}
+The normalized gaze offset vector $\\mathbf{g} = (g_x, g_y)^T$ is then:
+\\begin{equation}
+    g_x = \\frac{(p_{\\text{iris}} - m) \\cdot \\mathbf{u}}{w}, \\quad g_y = \\frac{(p_{\\text{iris}} - m) \\cdot \\mathbf{v}}{w}
+\\end{equation}
+\\textbf{Invariance Properties}: Translating the skull by $\\Delta \\mathbf{t}$ shifts $p_{\\text{iris}}$ and $m$ identically, so $(p_{\\text{iris}} + \\Delta \\mathbf{t}) - (m + \\Delta \\mathbf{t}) = p_{\\text{iris}} - m$, canceling 1st-order head sway. Normalizing by $w$ cancels camera distance variations, while projecting onto $\\mathbf{u}, \\mathbf{v}$ inherently cancels head roll tilt.
+
+\\subsection{28-Term Physics-Informed Feature Space}
+We expand $\\mathbf{g}$ into a 28-term basis vector $\\mathbf{\\phi} \\in \\mathbb{R}^{28}$ capturing: (1) binocular asymmetry (Eye A vs. Eye B), (2) perspective foreshortening on iris radius, (3) optical depth proxy $Z_{\\text{ratio}}$, (4) binocular disparity, (5) parallax cross-terms ($g_x \\cdot \\text{depth}, g_y \\cdot \\text{depth}$), (6) eyelid occlusion compensation ($g_y \\cdot \\text{EAR}$), and (7) cubic screen-tangent projections ($g_x^3, g_y^3$).
+
+\\subsection{Multi-Task ElasticNet Coordinate Descent}
+To prevent overfitting across the 28 terms, all features (except intercept) are standardized to zero mean and unit variance ($Z$). The model optimizes:
+\\begin{equation}
+    \\min_{\\mathbf{w}} \\frac{1}{2n} \\|\\mathbf{y} - Z \\mathbf{w}\\|_2^2 + \\alpha \\rho \\|\\mathbf{w}_{1:p}\\|_1 + \\frac{1}{2} \\alpha (1 - \\rho) \\|\\mathbf{w}_{1:p}\\|_2^2
+\\end{equation}
+where $\\rho \\in [0, 1]$ is the mixing ratio and $\\alpha$ is the regularization parameter. Cyclical coordinate descent updates each coefficient via the soft-thresholding operator:
+\\begin{equation}
+    w_j \\leftarrow \\frac{\\mathcal{S}\\left(\\frac{1}{n} \\sum_{i=1}^n Z_{ij} r_i + w_j \\|Z_j\\|^2, \\alpha \\rho\\right)}{\\|Z_j\\|^2 + \\alpha (1 - \\rho)}
+\\end{equation}
+where $r_i$ is the active residual vector.
+
+\\section{In-Situ Online Fine-Tuning Engine}
+To counteract posture fatigue and chair drift without recalibration, OpenGaze introduces an interaction-anchored online adaptation engine:
+\\begin{enumerate}
+    \\item \\textbf{Eye-Hand Temporal Coupling}: Whenever a user interacts with the UI (mouse click, touch tap at screen location $\\mathbf{y}_c$), the foveation window $t_c - 240\\,$ms to $t_c - 60\\,$ms is extracted from a rolling ring buffer. The mean feature vector $\\mathbf{\\phi}_c$ forms a supervised pair $(\\mathbf{\\phi}_c, \\mathbf{y}_c)$.
+    \\item \\textbf{Bayesian Prior Anchor}: Rather than unconstrained refitting (which diverges when clicks cluster in one screen region), the online objective enforces an elastic anchor to the baseline calibration $\\mathbf{w}_0$:
+    \\begin{equation}
+        \\min_{\\mathbf{w}} \\sum_{i=1}^M \\|\\mathbf{y}_i - Z_i \\mathbf{w}\\|_2^2 + \\lambda \\|\\mathbf{w}\\|_2^2 + \\gamma \\|\\mathbf{w} - \\mathbf{w}_0\\|_2^2
+    \\end{equation}
+    The hyperparameter $\\gamma > 0$ ensures local drift is absorbed while global display coverage is rigidly preserved.
+    \\item \\textbf{MAD Residual Outlier Gating}: False clicks (e.g., rapid saccades away prior to keyup) are rejected if residual $\\|\\mathbf{y}_i - \\hat{\\mathbf{y}}_i\\| > \\text{Median} + 2.5 \\cdot \\text{MAD}$.
+\\end{enumerate}
+
+\\section{Zero-DOM Bayesian Text Attribution}
+Traditional reading tracking mandates wrapping text in \\texttt{<span data-word>} containers, severely degrading DOM performance and breaking text selection. OpenGaze solves this via native \\texttt{Intl.Segmenter} and \\texttt{Range.getClientRects()} directly querying the layout tree.
+For fixation point $(f_x, f_y)$ with uncertainty $(\\sigma_x, \\sigma_y)$:
+\\begin{enumerate}
+    \\item \\textbf{Line Selection}: Gaussian posterior $P(\\text{Line}_k) \\propto \\exp(-0.5 ((f_y - y_k)/\\sigma_y)^2) \\cdot \\text{Gate}_x$.
+    \\item \\textbf{Word Attribution with PVL}: Eye-movement literature establishes that human fixations land left-of-center (Preferred Viewing Location, PVL $\\approx 0.4 \\cdot \\text{width}$ \\cite{rayner1979preferred}). The attribution score is:
+    \\begin{equation}
+        P(\\text{Word}_j) \\propto \\exp\\left(-\\frac{1}{2} \\left(\\frac{f_x - (\\text{left}_j + 0.4 \\cdot \\text{width}_j)}{\\sigma_x}\\right)^2\\right)
+    \\end{equation}
+\\end{enumerate}
+
+\\input{tables/table_baseline_comparison.tex}
+\\input{tables/table_ablation_study.tex}
+
+\\section{Experimental Evaluation}
+We evaluated OpenGaze against 4 competitive baselines across 1,045 captured webcam frames ($N=3$ diverse calibration sessions, 20-point landscape grid). All models were evaluated under strict \\textbf{Grouped Leave-One-Target-Out Cross-Validation} to prevent sample leakage.
+
+As shown in Table~\\ref{tab:baseline_comparison}, classical unregularized polynomial models (WebGazer baseline) yield a Mean CV RMS error of 197.3\\,px with severe 95th percentile worst-case error (376.5\\,px). Standard linear and per-eye ridge models marginally improve stability but suffer from high bias (193.7--194.2\\,px). \\textbf{OpenGaze achieves a Mean CV RMS of 138.8\\,px} (and 101.0\\,px on optimal sessions) with an execution latency of only $0.837\\,$ms per frame, easily sustaining 60\\,FPS tracking.
+
+Table~\\ref{tab:ablation_study} details the component ablations. Discarding the first 3 transit frames after a target jump eliminates 47.1\\% of error inflation caused by human saccadic reaction latency. Incorporating the 0.4 PVL offset improves exact word attribution accuracy from 68.1\\% to \\textbf{89.4\\%}.
+
+\\section{Conclusion}
+OpenGaze provides a robust, mathematically principled framework for in-browser eye tracking. By combining canthal geometric invariance, regularized ElasticNet optimization, interaction-anchored online fine-tuning, and zero-DOM Bayesian attribution, OpenGaze closes the gap between laboratory eye trackers and accessible commodity webcams. The entire framework, benchmarks, and dataset are open-sourced at \\url{https://github.com/Rahuldrabit/Eye_Tracker}.
+
+\\bibliographystyle{ACM-Reference-Format}
+\\bibliography{references}
+
+\\end{document}
