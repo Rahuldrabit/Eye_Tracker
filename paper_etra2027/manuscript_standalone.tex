@@ -1,6 +1,7 @@
-\documentclass[sigconf,nonacm]{acmart}
+\documentclass[10pt,twocolumn]{article}
 
 \usepackage[T1]{fontenc}
+\usepackage[margin=0.75in]{geometry}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -9,22 +10,22 @@
 \usepackage{microtype}
 \usepackage{subcaption}
 \usepackage{url}
+\usepackage{hyperref}
 
-\settopmatter{printacmref=false}
-\pagestyle{plain}
+\title{\textbf{OpenGaze: Head-Invariant In-Browser Gaze Estimation with In-Situ Online Fine-Tuning and Zero-DOM Bayesian Reading Telemetry}}
 
-\acmConference[ETRA '27]{2027 Symposium on Eye Tracking Research and Applications}{May 2027}{Stuttgart, Germany}
-\acmYear{2027}
-\copyrightyear{2027}
-
-\title{OpenGaze: Head-Invariant In-Browser Gaze Estimation with In-Situ Online Fine-Tuning and Zero-DOM Bayesian Reading Telemetry}
-
-\author{Rahul Drabit}
-\affiliation{%
-  \institution{Cognitive Vision and Interaction Lab}
-  \country{Independent Researcher}
+\author{
+  \textbf{Rahul Drabit} \\
+  Cognitive Vision and Interaction Lab \\
+  Independent Researcher \\
+  \texttt{contact@rahuldrabit.dev}
 }
-\email{contact@rahuldrabit.dev}
+
+\date{ACM ETRA 2027 Submission Draft}
+
+\begin{document}
+
+\maketitle
 
 \begin{abstract}
 Commodity webcam-based eye tracking has long suffered from three foundational failure modes: (1) acute vulnerability to head sway and posture drift, where a 1\,cm head translation can overpower the biological eye rotation signal; (2) numerical ill-conditioning in classical polynomial calibration mappings ($\kappa(A^T A) > 10^5$), causing runaway overfitting and jitter; and (3) intrusive DOM manipulation (such as wrapping text in thousands of \texttt{<span>} elements) that distorts web page rendering during reading studies. 
@@ -32,27 +33,7 @@ Commodity webcam-based eye tracking has long suffered from three foundational fa
 We present \textbf{OpenGaze}, an open-source, high-precision web eye-tracking framework that fundamentally resolves these bottlenecks. OpenGaze introduces: (1) an intrinsic \textit{canthal vector projection} that decouples 1st-order head translation, distance scaling, and roll tilt in closed form; (2) a 28-term physics-informed feature space solved via a multi-task \textit{ElasticNet coordinate descent} engine; (3) an \textit{in-situ continuous fine-tuning engine} that harvests passive eye-hand foveation pairs during clicks, anchored by an elastic Bayesian prior to prevent catastrophic divergence; and (4) a \textit{zero-DOM hierarchical Bayesian text attributor} incorporating the human Preferred Viewing Location (PVL = 0.4) using non-invasive \texttt{Range.getClientRects()}. Empirical multi-session evaluations demonstrate that OpenGaze reduces held-out Grouped Cross-Validation RMS error from 197.3\,px (WebGazer baseline) to \textbf{138.8\,px} (reaching 101.0\,px on optimal sessions) with sub-millisecond per-frame latency ($0.837\,$ms). The framework is fully decoupled, production-ready, and available at \url{https://github.com/Rahuldrabit/Eye_Tracker}.
 \end{abstract}
 
-\begin{CCSXML}
-<ccs2012>
-   <concept>
-       <concept_id>10003120.10003121.10003128</concept_id>
-       <concept_desc>Human-centered computing~Interaction techniques</concept_desc>
-       <concept_significance>500</concept_significance>
-   </concept>
-   <concept>
-       <concept_id>10010147.10010178.10010224</concept_id>
-       <concept_desc>Computing methodologies~Computer vision</concept_desc>
-       <concept_significance>500</concept_significance>
-   </concept>
-</ccs2012>
-\end{CCSXML}
-
-\ccsdesc[500]{Human-centered computing~Interaction techniques}
-\ccsdesc[500]{Computing methodologies~Computer vision}
-
-\keywords{Eye tracking, webcam gaze estimation, online adaptation, Bayesian attribution, reading telemetry, head-pose invariance.}
-
-\maketitle
+\textbf{Keywords:} Eye tracking, webcam gaze estimation, online adaptation, Bayesian attribution, reading telemetry, head-pose invariance.
 
 \section{Introduction}
 Eye tracking in consumer browsers unlocks transformative possibilities for psychological research, accessible computing, cognitive diagnostics, and e-learning. While commercial infrared eye trackers provide sub-degree foveal resolution, their prohibitive cost and specialized hardware prevent broad ecological deployment. Conversely, web eye tracking frameworks such as WebGazer.js \cite{papoutsaki2016webgazer} democratized access using standard webcams, but remain notoriously fragile under real-world usage.
@@ -167,53 +148,7 @@ Table~\ref{tab:ablation_study} details the component ablations. Discarding the f
 \section{Conclusion}
 OpenGaze provides a robust, mathematically principled framework for in-browser eye tracking. By combining canthal geometric invariance, regularized ElasticNet optimization, interaction-anchored online fine-tuning, and zero-DOM Bayesian attribution, OpenGaze closes the gap between laboratory eye trackers and accessible commodity webcams. The entire framework, benchmarks, and dataset are open-sourced at \url{https://github.com/Rahuldrabit/Eye_Tracker}.
 
-\begin{thebibliography}{9}
-
-\bibitem{papoutsaki2016webgazer}
-Alexandra Papoutsaki, Patsorn Sangkloy, James Laskey, Nediyana Daskalova, Jeff Huang, and James Hays. 2016.
-\newblock WebGazer: Scalable Webcam Eye Tracking Using User Interactions.
-\newblock In \emph{Proceedings of the Twenty-Fifth International Joint Conference on Artificial Intelligence (IJCAI)}, 3839--3845.
-
-\bibitem{casiez20121}
-G{\'e}ry Casiez, Nicolas Roussel, and Daniel Vogel. 2012.
-\newblock 1-Euro Filter: A Simple Speed-Based Low-Pass Filter for Noisy Input in Interactive Systems.
-\newblock In \emph{Proceedings of the SIGCHI Conference on Human Factors in Computing Systems (CHI)}, 2527--2530.
-
-\bibitem{rayner1998eye}
-Keith Rayner. 1998.
-\newblock Eye movements in reading and information processing: 20 years of research.
-\newblock \emph{Psychological Bulletin} 124, 3 (1998), 372--422.
-
-\bibitem{rayner1979preferred}
-Keith Rayner. 1979.
-\newblock Eye guidance in reading: Eye position within a word.
-\newblock \emph{Perception \& Psychophysics} 25, 1 (1979), 21--26.
-
-\bibitem{luger2020invariance}
-Ewa Luger and Abigail Sellen. 2020.
-\newblock Head-pose invariant eye tracking: A survey of geometric and appearance-based approaches.
-\newblock \emph{ACM Computing Surveys} 53, 2 (2020), 1--36.
-
-\bibitem{zhang2015appearance}
-Xucong Zhang, Yusuke Sugano, Mario Fritz, and Andreas Bulling. 2015.
-\newblock Appearance-based gaze estimation in the wild.
-\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, 4511--4520.
-
-\bibitem{tibshirani1996regression}
-Robert Tibshirani. 1996.
-\newblock Regression shrinkage and selection via the lasso.
-\newblock \emph{Journal of the Royal Statistical Society: Series B (Methodological)} 58, 1 (1996), 267--288.
-
-\bibitem{zou2005regularization}
-Hui Zou and Trevor Hastie. 2005.
-\newblock Regularization and variable selection via the elastic net.
-\newblock \emph{Journal of the Royal Statistical Society: Series B (Statistical Methodology)} 67, 2 (2005), 301--320.
-
-\bibitem{salvucci2000identifying}
-Dario~D. Salvucci and Joseph~H. Goldberg. 2000.
-\newblock Identifying fixations and saccades in eye-tracking protocols.
-\newblock In \emph{Proceedings of the 2000 Symposium on Eye Tracking Research \& Applications (ETRA)}, 71--78.
-
-\end{thebibliography}
+\bibliographystyle{plain}
+\bibliography{references}
 
 \end{document}
