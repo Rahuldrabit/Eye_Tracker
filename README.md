@@ -2,7 +2,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![ACM ETRA 2027](https://img.shields.io/badge/Target%20Paper-ACM%20ETRA%202027-red.svg)](https://etra.acm.org/2027/)
 [![Repository](https://img.shields.io/badge/GitHub-Rahuldrabit%2FEye__Tracker-green.svg)](https://github.com/Rahuldrabit/Eye_Tracker)
 
 **OpenGaze** is a research-grade, zero-DOM web eye-tracking framework engineered for commodity webcams. It solves the classic failure modes of browser eye tracking—**head-sway vulnerability**, **ill-conditioned polynomial calibration**, **temporal posture drift**, and **DOM-bloating markup**—through closed-form canthal geometry, multi-task ElasticNet optimization, and in-situ online fine-tuning.
