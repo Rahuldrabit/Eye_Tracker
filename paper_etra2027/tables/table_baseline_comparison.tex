@@ -6,11 +6,11 @@
 \toprule
 \textbf{Model Architecture} & \textbf{CV RMS (px)} $\downarrow$ & \textbf{P95 Error (px)} $\downarrow$ & \textbf{Cond. $\kappa(A^T A)$} $\downarrow$ & \textbf{Latency (ms)} $\downarrow$ \\
 \midrule
-Classical Polynomial (WebGazer OLS) & 197.3 & 376.5 & 34.9 & 0.011 \\
-Standard Linear Ridge & 194.2 & 384.2 & 736.8 & 0.009 \\
-Standard Polynomial Ridge & 197.4 & 375.2 & $4.1 \times 10^5$ & 0.007 \\
-Production Per-Eye Ridge & 193.7 & 368.4 & 765.2 & 0.011 \\
-\textbf{OpenGaze (Proposed 28-Term ElasticNet)} & \textbf{138.8} & \textbf{368.9} & $1.8 \times 10^8$ & 0.837 \\
+Classical Polynomial (WebGazer OLS) & 211.5 & 399.5 & 34.3 & 0.008 \\
+Standard Linear Ridge & 220.2 & 411.6 & 872.0 & 0.005 \\
+Standard Polynomial Ridge & 211.6 & 398.3 & 5.4e+5 & 0.011 \\
+Production Per-Eye Ridge & 221.0 & 405.3 & 900.1 & 0.008 \\
+\textbf{OpenGaze (Proposed 28-Term ElasticNet)} & \textbf{123.1} & \textbf{254.3} & 5.0e+10 & 0.828 \\
 \bottomrule
 \end{tabular}
 \end{table}

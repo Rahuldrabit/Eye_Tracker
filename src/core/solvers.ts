@@ -126,12 +126,13 @@ export function solveElasticNet(
 }
 
 /**
- * Standard Ridge Solver via Normal Equations with unpenalized intercept.
+ * Standard Ridge Solver via Normal Equations with unpenalized intercept and optional sample weighting.
  */
 export function solveRidge(
   X: Float64Array[],
   Y: number[] | Float64Array,
-  lambda = 1e-3
+  lambda = 1e-3,
+  weights?: Float64Array | number[]
 ): Float64Array {
   const n = X.length
   const p = X[0].length
@@ -140,24 +141,29 @@ export function solveRidge(
   const XtX: number[][] = Array.from({ length: p }, () => new Array(p).fill(0))
   const XtY: number[] = new Array(p).fill(0)
 
+  let totalWeight = 0
   for (let i = 0; i < n; i++) {
     const row = X[i]
     const y = Y[i]
+    const w = weights ? weights[i] : 1.0
+    totalWeight += w
+
     for (let j = 0; j < p; j++) {
-      XtY[j] += row[j] * y
+      XtY[j] += row[j] * y * w
       for (let k = j; k < p; k++) {
-        XtX[j][k] += row[j] * row[k]
+        XtX[j][k] += row[j] * row[k] * w
       }
     }
   }
 
   // Symmetrize and add L2 ridge penalty (leaving intercept unpenalized)
+  const effN = weights ? totalWeight : n
   for (let j = 0; j < p; j++) {
     for (let k = 0; k < j; k++) {
       XtX[j][k] = XtX[k][j]
     }
     if (j > 0) {
-      XtX[j][j] += lambda * n
+      XtX[j][j] += lambda * effN
     }
   }
 
@@ -207,4 +213,81 @@ export function solveRidge(
   }
 
   return w
+}
+
+/**
+ * Multivariate anomaly filtering: detects and removes observations exhibiting anomalous
+ * joint feature configurations (e.g. tracking glitches, sudden blink transitions, severe occlusion).
+ * Discards the top `contamination` fraction (default 5%) of highest standardized distance.
+ */
+export function filterMultivariateOutliers(
+  X: Float64Array[],
+  Y: number[] | Float64Array,
+  contamination = 0.05
+): {
+  cleanX: Float64Array[]
+  cleanY: Float64Array
+  inlierIndices: number[]
+} {
+  const n = X.length
+  if (n <= 10 || contamination <= 0) {
+    return {
+      cleanX: X,
+      cleanY: new Float64Array(Y),
+      inlierIndices: Array.from({ length: n }, (_, i) => i),
+    }
+  }
+
+  const p = X[0].length
+  // Compute column means and standard deviations (ignoring intercept j=0)
+  const mu = new Float64Array(p - 1)
+  const sd = new Float64Array(p - 1)
+
+  for (let j = 1; j < p; j++) {
+    let sum = 0
+    for (let i = 0; i < n; i++) sum += X[i][j]
+    mu[j - 1] = sum / n
+
+    let sumSq = 0
+    for (let i = 0; i < n; i++) {
+      const diff = X[i][j] - mu[j - 1]
+      sumSq += diff * diff
+    }
+    const s = Math.sqrt(sumSq / n)
+    sd[j - 1] = s < 1e-9 ? 1.0 : s
+  }
+
+  // Calculate squared standardized Euclidean distance to centroid
+  const distances: { index: number; distSq: number }[] = []
+  for (let i = 0; i < n; i++) {
+    let dSq = 0
+    for (let j = 1; j < p; j++) {
+      const z = (X[i][j] - mu[j - 1]) / sd[j - 1]
+      dSq += z * z
+    }
+    distances.push({ index: i, distSq: dSq })
+  }
+
+  // Sort distances ascending
+  distances.sort((a, b) => a.distSq - b.distSq)
+  const retainCount = Math.max(8, Math.floor(n * (1.0 - contamination)))
+  const inlierSet = new Set(distances.slice(0, retainCount).map((d) => d.index))
+
+  const cleanX: Float64Array[] = []
+  const cleanYVals: number[] = []
+  const inlierIndices: number[] = []
+
+  for (let i = 0; i < n; i++) {
+    if (inlierSet.has(i)) {
+      cleanX.push(X[i])
+      cleanYVals.push(Y[i])
+      inlierIndices.push(i)
+    }
+  }
+
+  return {
+    cleanX,
+    cleanY: new Float64Array(cleanYVals),
+    inlierIndices,
+  }
 }

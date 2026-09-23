@@ -78,7 +78,7 @@ export class FixationDetector {
 
     // Check dispersion over current window
     const duration = this.window[this.window.length - 1].timestamp - this.window[0].timestamp
-    const { dispX, dispY, minX, maxX, minY, maxY } = this.computeDispersion()
+    const { dispX, dispY } = this.computeDispersion()
 
     const maxDispX = this.config.baseDispersionXPx + (sample.sigmaX || 0) * this.config.dispersionSigmaMultiple
     const maxDispY = this.config.baseDispersionYPx + (sample.sigmaY || 0) * this.config.dispersionSigmaMultiple

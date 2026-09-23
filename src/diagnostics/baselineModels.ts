@@ -86,7 +86,7 @@ export function evaluateClassicalPolyOLS(samples: RawCalibrationSample[]): Model
     r[0] = 1.0; r[1] = ix; r[2] = iy; r[3] = ix * iy; r[4] = ix * ix; r[5] = iy * iy
     return r
   })
-  const condNum = estimateConditionNumber(fullX, 6)
+  const condNum = estimateConditionNumber(fullX, p)
 
   for (const g of uniqueGroups) {
     const trIndices: number[] = []
@@ -107,7 +107,7 @@ export function evaluateClassicalPolyOLS(samples: RawCalibrationSample[]): Model
     for (const teIdx of teIndices) {
       const row = fullX[teIdx]
       let px = 0, py = 0
-      for (let j = 0; j < 6; j++) {
+      for (let j = 0; j < p; j++) {
         px += row[j] * wX[j]
         py += row[j] * wY[j]
       }
@@ -148,7 +148,7 @@ export function evaluateLinearRidge(samples: RawCalibrationSample[]): ModelBench
     r[0] = 1.0; r[1] = s.feature.gx; r[2] = s.feature.gy
     return r
   })
-  const condNum = estimateConditionNumber(fullX, 3)
+  const condNum = estimateConditionNumber(fullX, p)
 
   for (const g of uniqueGroups) {
     const trIndices: number[] = []
@@ -169,7 +169,7 @@ export function evaluateLinearRidge(samples: RawCalibrationSample[]): ModelBench
     for (const teIdx of teIndices) {
       const row = fullX[teIdx]
       let px = wX[0], py = wY[0]
-      for (let j = 1; j < 3; j++) {
+      for (let j = 1; j < p; j++) {
         const z = (row[j] - mu[j - 1]) / sd[j - 1]
         px += z * wX[j]
         py += z * wY[j]
@@ -212,7 +212,7 @@ export function evaluatePolynomialRidge(samples: RawCalibrationSample[]): ModelB
     r[0] = 1.0; r[1] = gx; r[2] = gy; r[3] = gx * gy; r[4] = gx * gx; r[5] = gy * gy
     return r
   })
-  const condNum = estimateConditionNumber(fullX, 6)
+  const condNum = estimateConditionNumber(fullX, p)
 
   for (const g of uniqueGroups) {
     const trIndices: number[] = []
@@ -233,7 +233,7 @@ export function evaluatePolynomialRidge(samples: RawCalibrationSample[]): ModelB
     for (const teIdx of teIndices) {
       const row = fullX[teIdx]
       let px = wX[0], py = wY[0]
-      for (let j = 1; j < 6; j++) {
+      for (let j = 1; j < p; j++) {
         const z = (row[j] - mu[j - 1]) / sd[j - 1]
         px += z * wX[j]
         py += z * wY[j]
@@ -278,7 +278,7 @@ export function evaluatePerEyeRidge(samples: RawCalibrationSample[]): ModelBench
     r[7] = s.feature.disparity
     return r
   })
-  const condNum = estimateConditionNumber(fullX, 8)
+  const condNum = estimateConditionNumber(fullX, p)
 
   for (const g of uniqueGroups) {
     const trIndices: number[] = []
@@ -299,7 +299,7 @@ export function evaluatePerEyeRidge(samples: RawCalibrationSample[]): ModelBench
     for (const teIdx of teIndices) {
       const row = fullX[teIdx]
       let px = wX[0], py = wY[0]
-      for (let j = 1; j < 8; j++) {
+      for (let j = 1; j < p; j++) {
         const z = (row[j] - mu[j - 1]) / sd[j - 1]
         px += z * wX[j]
         py += z * wY[j]

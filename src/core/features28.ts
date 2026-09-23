@@ -48,31 +48,31 @@ export const ENHANCED_FEATURE_NAMES = [
   'intercept',
   'gx',
   'gy',
-  'eyeA_gx',
-  'eyeA_gy',
-  'eyeB_gx',
-  'eyeB_gy',
+  'disparity',
+  'ear',
+  'faceScale',
   'yaw',
   'pitch',
-  'head_x',
-  'head_y',
-  'z_ratio',
-  'iris_yaw_proxy',
-  'head_y_parallax',
-  'head_x_parallax',
-  'pitch_parallax',
-  'yaw_parallax',
-  'gx_depth',
-  'gy_depth',
-  'gaze_head_x',
-  'gaze_head_y',
-  'gy_ear',
-  'ear',
-  'disparity',
-  'vertical_disparity',
-  'gx_cubed',
-  'gy_cubed',
   'roll',
+  'eyeA_gx',
+  'eyeA_gy',
+  'eyeA_ear',
+  'eyeA_width',
+  'eyeA_irisRadius',
+  'eyeB_gx',
+  'eyeB_gy',
+  'eyeB_ear',
+  'eyeB_width',
+  'eyeB_irisRadius',
+  'width_asymmetry',
+  'iris_asymmetry',
+  'tan_gx',
+  'tan_gy',
+  'dist_scaled_gx',
+  'dist_scaled_gy',
+  'ear_diff',
+  'gx_yaw_cross',
+  'gy_pitch_cross',
 ] as const
 
 export const ENHANCED_FEATURE_COUNT = ENHANCED_FEATURE_NAMES.length // 28 terms
@@ -88,18 +88,19 @@ export function computeCalibrationAnchor(samples: { feature: EyeFeature }[]): Ca
     return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2.0
   }
 
-  const faceScale = med((f) => f.faceScale) || 1.0
+  const faceScale = med((f) => f.faceScale) || 260.0
   const noseX = med((f) => f.noseX)
   const noseY = med((f) => f.noseY)
   const pitchProxy = med((f) => f.pitchProxy)
   const yawProxy = med((f) => f.yawProxy)
-  const irisRadius = med((f) => (f.eyeA.irisRadius + f.eyeB.irisRadius) / 2.0) || 10.0
+  const irisRadius = med((f) => (f.eyeA.irisRadius + f.eyeB.irisRadius) / 2.0) || 10.5
 
   return { faceScale, noseX, noseY, pitchProxy, yawProxy, irisRadius }
 }
 
 /**
- * Builds the 28-term feature vector for a given EyeFeature using the calibration anchor.
+ * Builds the 28-term SOTA feature vector for a given EyeFeature using the calibration anchor.
+ * Incorporates perspective width/iris asymmetry invariants, tangent transforms, and depth warping.
  */
 export function buildEnhancedFeatureRow(
   f: EyeFeature,
@@ -107,68 +108,64 @@ export function buildEnhancedFeatureRow(
 ): Float64Array {
   const row = new Float64Array(ENHANCED_FEATURE_COUNT)
 
-  // Intercept
+  // 0. Intercept
   row[0] = 1.0
 
-  // 1. Core head-invariant gaze offsets
+  // 1-2. Core binocular gaze vectors
   row[1] = f.gx
   row[2] = f.gy
 
-  // 2. Asymmetric independent eye offsets
-  row[3] = f.eyeA.gx
-  row[4] = f.eyeA.gy
-  row[5] = f.eyeB.gx
-  row[6] = f.eyeB.gy
+  // 3-5. Ocular disparity, mean EAR, and normalized distance/scale
+  row[3] = f.disparity
+  row[4] = f.ear
+  const baseScale = anchor.faceScale || 260.0
+  row[5] = (f.faceScale - baseScale) / baseScale
 
-  // 3. Normalized head-pose relative to anchor
+  // 6-8. Relative head pose (azimuth, elevation, roll)
   const yaw = f.yawProxy - anchor.yawProxy
   const pitch = f.pitchProxy - anchor.pitchProxy
-  row[7] = yaw
-  row[8] = pitch
+  row[6] = yaw
+  row[7] = pitch
+  row[8] = f.roll
 
-  // 4. Normalized head position in screen space
-  const headX = (f.noseX - anchor.noseX) / (anchor.faceScale || 1.0)
-  const headY = (f.noseY - anchor.noseY) / (anchor.faceScale || 1.0)
-  row[9] = headX
-  row[10] = headY
+  // 9-13. Decoupled Left Eye (Eye A) features
+  row[9] = f.eyeA.gx
+  row[10] = f.eyeA.gy
+  row[11] = f.eyeA.ear
+  row[12] = f.eyeA.width
+  row[13] = f.eyeA.irisRadius
 
-  // 5. Optical depth proxy (Z_ratio)
-  const currentIrisR = (f.eyeA.irisRadius + f.eyeB.irisRadius) / 2.0
-  const zRatio = (f.faceScale / (anchor.faceScale || 1.0) + currentIrisR / (anchor.irisRadius || 1.0)) / 2.0
-  row[11] = zRatio - 1.0
+  // 14-18. Decoupled Right Eye (Eye B) features
+  row[14] = f.eyeB.gx
+  row[15] = f.eyeB.gy
+  row[16] = f.eyeB.ear
+  row[17] = f.eyeB.width
+  row[18] = f.eyeB.irisRadius
 
-  // 6. Iris yaw disparity
-  const irisYawProxy = (f.eyeA.irisRadius - f.eyeB.irisRadius) / (currentIrisR || 1.0)
-  row[12] = irisYawProxy
+  // 19-20. Optical Perspective Invariants (Scale-independent 3D perspective cues)
+  const sumWidth = f.eyeA.width + f.eyeB.width
+  row[19] = sumWidth > 1e-6 ? (f.eyeA.width - f.eyeB.width) / sumWidth : 0.0
 
-  // 7. Parallax coupling
-  row[13] = headY * row[11]
-  row[14] = headX * row[11]
-  row[15] = pitch * row[11]
-  row[16] = yaw * row[11]
+  const sumIris = f.eyeA.irisRadius + f.eyeB.irisRadius
+  row[20] = sumIris > 1e-6 ? (f.eyeA.irisRadius - f.eyeB.irisRadius) / sumIris : 0.0
 
-  // 8. Depth-scaled gaze offsets
-  row[17] = f.gx * row[11]
-  row[18] = f.gy * row[11]
+  // 21-22. Planar Tangent Projections (Screen coordinate X ~ D * tan(theta))
+  const clipGx = Math.min(1.2, Math.max(-1.2, f.gx))
+  const clipGy = Math.min(1.2, Math.max(-1.2, f.gy))
+  row[21] = Math.tan(clipGx)
+  row[22] = Math.tan(clipGy)
 
-  // 9. Gaze-head interaction terms
-  row[19] = f.gx * yaw
-  row[20] = f.gy * pitch
+  // 23-24. Distance-Normalized Gaze (Face-scale dynamic magnification compensation)
+  const scaleRatio = f.faceScale / baseScale
+  row[23] = f.gx * scaleRatio
+  row[24] = f.gy * scaleRatio
 
-  // 10. Eyelid occlusion interaction (vertical gaze bias compensation)
-  row[21] = f.gy * f.ear
-  row[22] = f.ear
+  // 25. Differential Eyelid Squint / Asymmetry
+  row[25] = f.eyeA.ear - f.eyeB.ear
 
-  // 11. Disparity terms
-  row[23] = f.disparity
-  row[24] = f.eyeA.gy - f.eyeB.gy
-
-  // 12. Non-linear cubic screen-tangent projections
-  row[25] = f.gx * f.gx * f.gx
-  row[26] = f.gy * f.gy * f.gy
-
-  // 13. Roll angle
-  row[27] = f.roll
+  // 26-27. Kinematic Cross-Terms (Gaze-Head Pose Decoupling)
+  row[26] = f.gx * yaw
+  row[27] = f.gy * pitch
 
   return row
 }

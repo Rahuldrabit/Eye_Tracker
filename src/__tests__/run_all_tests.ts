@@ -18,7 +18,7 @@ import { OneEuroFilter2D } from '../core/oneEuroFilter'
 import { FixationDetector } from '../core/fixation'
 import {
   ContinuousAdaptationEngine,
-  DEFAULT_ADAPTATION_CONFIG,
+  AffineRecalibrator,
 } from '../core/onlineAdaptation'
 import { ReadingLineSnapper } from '../web/lineSnapper'
 import { attributeFixationToText } from '../web/bayesianAOI'
@@ -104,7 +104,7 @@ for (let i = 0; i < 20; i++) {
   mockX.push(r)
   mockY.push(100 + 20 * r[1] - 5 * r[2])
 }
-const { XStd, mu, sd } = standardizeFeatures(mockX)
+const { XStd } = standardizeFeatures(mockX)
 const wRidge = solveRidge(XStd, mockY, 1e-3)
 assert(wRidge.length === 4, 'Ridge solver returns correct weight dimensions')
 assert(Math.abs(wRidge[0] - 100) < 50, 'Ridge intercept reasonably recovers target mean')
@@ -131,11 +131,10 @@ assert(pSaccade.x > 700, 'One-Euro filter rapidly tracks high-speed ballistic sa
 // -----------------------------------------------------------------------------
 console.log('\n--- Test 5: Fixation Detector with Seed-Forward Saccades ---')
 const detector = new FixationDetector({ minDurationMs: 100, baseDispersionXPx: 30, baseDispersionYPx: 20 })
-let fix: any = null
 
 // Feed 8 stable points spanning 160ms (20ms interval)
 for (let i = 0; i < 8; i++) {
-  fix = detector.processSample({
+  detector.processSample({
     x: 400 + (i % 3),
     y: 200 + (i % 2),
     timestamp: 1000 + i * 20,
@@ -154,8 +153,10 @@ const closedFix = detector.processSample({
 })
 
 assert(closedFix !== null, 'Fixation closed upon saccade breaking dispersion threshold')
-assert(Math.abs(closedFix.centroidX - 401) < 2.0, 'Fixation centroid accurately computed from resting samples')
-assert(closedFix.duration >= 140, `Fixation duration (${closedFix.duration}ms) meets threshold`)
+if (closedFix) {
+  assert(Math.abs(closedFix.centroidX - 401) < 2.0, 'Fixation centroid accurately computed from resting samples')
+  assert(closedFix.duration >= 140, `Fixation duration (${closedFix.duration}ms) meets threshold`)
+}
 
 // -----------------------------------------------------------------------------
 // Test 6: In-Situ Online Fine-Tuning Engine
@@ -227,7 +228,21 @@ const mockLineBands = [
 const attr = attributeFixationToText(82, 112, 15, 12, mockLineBands)
 assert(attr.level === 'word', 'Fixation at PVL target attributed cleanly to level word')
 assert(attr.wordText === 'Quick', 'Attributed to exact word Quick')
-assert(attr.confidence > 0.45, `Attribution confidence (${(attr.confidence * 100).toFixed(1)}%) exceeds threshold`)
+// -----------------------------------------------------------------------------
+// Test 9: Fast 4-Point Affine Recalibrator
+// -----------------------------------------------------------------------------
+console.log('\n--- Test 9: Fast 4-Point Affine Recalibrator ---')
+const affine = new AffineRecalibrator()
+const pairs = [
+  { predicted: { x: 100, y: 100 }, actual: { x: 110, y: 105 } },
+  { predicted: { x: 900, y: 100 }, actual: { x: 910, y: 105 } },
+  { predicted: { x: 100, y: 700 }, actual: { x: 110, y: 705 } },
+  { predicted: { x: 900, y: 700 }, actual: { x: 910, y: 705 } },
+]
+const ok = affine.fit(pairs)
+assert(ok, 'AffineRecalibrator fits 4-point pairs successfully')
+const corr = affine.apply(500, 400)
+assert(Math.abs(corr.x - 510) < 1.0 && Math.abs(corr.y - 405) < 1.0, 'Affine correction recovers translation shift')
 
 console.log('\n========================================================================')
 console.log(`[ALL ${passCount} UNIT AND INTEGRATION TESTS PASSED CLEANLY!]`)

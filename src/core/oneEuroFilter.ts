@@ -52,7 +52,6 @@ export class OneEuroFilter2D {
     this.dyHatPrev = dyHat
 
     // 3. Dynamic cutoff frequency tracking velocity
-    const speed = Math.hypot(dxHat, dyHat)
     const cutoffX = this.minCutoff + this.beta * Math.abs(dxHat)
     const cutoffY = this.minCutoff + this.beta * Math.abs(dyHat)
 

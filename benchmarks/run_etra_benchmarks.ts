@@ -40,6 +40,7 @@ const dataFiles = [
   'calibration-export-1788065417299.json',
   'calibration-export-1788065666638.json',
   'calibration-export-1788065794436.json',
+  'calibration-export-1790073671613.json',
 ]
 
 interface AggregatedResult {
@@ -54,7 +55,10 @@ interface AggregatedResult {
 const modelMap = new Map<string, AggregatedResult>()
 
 for (const fileName of dataFiles) {
-  const filePath = path.resolve(__dirname, '../../', fileName)
+  let filePath = path.resolve(__dirname, '../../Calibration data', fileName)
+  if (!fs.existsSync(filePath)) {
+    filePath = path.resolve(__dirname, '../../', fileName)
+  }
   if (!fs.existsSync(filePath)) {
     console.warn(`File not found: ${filePath}, skipping...`)
     continue
@@ -113,7 +117,7 @@ interface FinalRow {
 
 const finalRows: FinalRow[] = []
 
-for (const [id, agg] of modelMap.entries()) {
+for (const agg of modelMap.values()) {
   const avgRms = mean(agg.cvRmsList)
   const avgP95 = mean(agg.p95List)
   const avgCond = mean(agg.condNumList)
