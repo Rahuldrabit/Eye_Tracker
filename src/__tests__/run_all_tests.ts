@@ -13,7 +13,13 @@ import {
   solveElasticNet,
   solveRidge,
   standardizeFeatures,
+  standardizeWeights,
+  unstandardizeWeights,
 } from '../core/solvers'
+import {
+  trainGazeModel,
+  type RawCalibrationSample,
+} from '../core/modelSelection'
 import { OneEuroFilter2D } from '../core/oneEuroFilter'
 import { FixationDetector } from '../core/fixation'
 import {
@@ -244,6 +250,68 @@ assert(ok, 'AffineRecalibrator fits 4-point pairs successfully')
 const corr = affine.apply(500, 400)
 assert(Math.abs(corr.x - 510) < 1.0 && Math.abs(corr.y - 405) < 1.0, 'Affine correction recovers translation shift')
 
+// -----------------------------------------------------------------------------
+// Test 10: Weight Standardization / Unstandardization Mathematical Invariance
+// -----------------------------------------------------------------------------
+console.log('\n--- Test 10: Weight Standardization Invariance ---')
+const testWRaw = new Float64Array([100, 2.5, -4.0])
+const testMu = new Float64Array([10.0, 20.0])
+const testSd = new Float64Array([2.0, 5.0])
+const testWStd = standardizeWeights(testWRaw, testMu, testSd)
+const testWRawRecov = unstandardizeWeights(testWStd, testMu, testSd)
+assert(Math.abs(testWRawRecov[0] - testWRaw[0]) < 1e-10, 'Unstandardized intercept matches ground truth')
+assert(Math.abs(testWRawRecov[1] - testWRaw[1]) < 1e-10, 'Unstandardized slope 1 matches ground truth')
+assert(Math.abs(testWRawRecov[2] - testWRaw[2]) < 1e-10, 'Unstandardized slope 2 matches ground truth')
+
+// -----------------------------------------------------------------------------
+// Test 11: Continuous Adaptation Engine Prediction & Affine Cascade
+// -----------------------------------------------------------------------------
+console.log('\n--- Test 11: Continuous Adaptation Engine Prediction ---')
+const onlinePred = adaptEngine.predict(mockFeature)
+assert(Number.isFinite(onlinePred.x) && Number.isFinite(onlinePred.y), 'ContinuousAdaptationEngine.predict returns finite coordinates')
+const affinePred = adaptEngine.predictWithAffine(mockFeature, affine)
+assert(Number.isFinite(affinePred.x) && Number.isFinite(affinePred.y), 'ContinuousAdaptationEngine.predictWithAffine cascades through affine matrix')
+
+// -----------------------------------------------------------------------------
+// Test 12: FixationDetector Flush
+// -----------------------------------------------------------------------------
+console.log('\n--- Test 12: FixationDetector Flush ---')
+const flushDetector = new FixationDetector({ minDurationMs: 80, baseDispersionXPx: 30, baseDispersionYPx: 20 })
+for (let i = 0; i < 6; i++) {
+  flushDetector.processSample({ x: 300, y: 150, timestamp: 1000 + i * 20 })
+}
+const flushedFix = flushDetector.flush()
+assert(flushedFix !== null, 'FixationDetector.flush cleanly returns active fixation at stream end')
+assert(flushDetector.flush() === null, 'Subsequent flush returns null after window cleared')
+
+// -----------------------------------------------------------------------------
+// Test 13: End-to-End trainGazeModel Pipeline
+// -----------------------------------------------------------------------------
+console.log('\n--- Test 13: trainGazeModel Full Calibration Pipeline ---')
+const mockCalibrationSamples: RawCalibrationSample[] = []
+for (let g = 0; g < 4; g++) {
+  const target = { x: 200 + g * 200, y: 150 + (g % 2) * 200 }
+  for (let f = 0; f < 10; f++) {
+    mockCalibrationSamples.push({
+      group: g,
+      target,
+      feature: {
+        ...mockFeature,
+        gx: (target.x - 500) / 1000 + (f % 3) * 0.001,
+        gy: (target.y - 300) / 1000 + (f % 2) * 0.001,
+      },
+      timestamp: g * 1000 + f * 50,
+    })
+  }
+}
+const model = trainGazeModel(mockCalibrationSamples)
+assert(model.cleanedSamples.length > 0, 'trainGazeModel produced cleaned samples')
+assert(model.centroids.length === 4, 'trainGazeModel aggregated 4 target centroids')
+assert(model.weightsX.length === ENHANCED_FEATURE_COUNT, 'Trained model weights match 28 terms')
+const testGaze = model.predict(mockFeature)
+assert(Number.isFinite(testGaze.x) && Number.isFinite(testGaze.y), 'Trained model predicts valid finite gaze coordinate')
+
 console.log('\n========================================================================')
 console.log(`[ALL ${passCount} UNIT AND INTEGRATION TESTS PASSED CLEANLY!]`)
 console.log('========================================================================')
+

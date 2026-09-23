@@ -18,6 +18,13 @@ export function standardizeFeatures(X: Float64Array[]): {
   sd: Float64Array
 } {
   const n = X.length
+  if (n === 0) {
+    return {
+      XStd: [],
+      mu: new Float64Array(0),
+      sd: new Float64Array(0),
+    }
+  }
   const p = X[0].length
   const mu = new Float64Array(p - 1)
   const sd = new Float64Array(p - 1)
@@ -50,6 +57,50 @@ export function standardizeFeatures(X: Float64Array[]): {
 }
 
 /**
+ * Maps standardized regression weights back to the original unstandardized feature space:
+ *   w_raw[j] = w_std[j] / sd[j-1]  (for j >= 1)
+ *   w_raw[0] = w_std[0] - sum_{j=1}^{p-1} (w_std[j] * mu[j-1] / sd[j-1])
+ */
+export function unstandardizeWeights(
+  wStd: Float64Array,
+  mu: Float64Array,
+  sd: Float64Array
+): Float64Array {
+  const p = wStd.length
+  const wRaw = new Float64Array(p)
+  let intercept = wStd[0]
+  for (let j = 1; j < p; j++) {
+    const s = sd[j - 1] > 1e-9 ? sd[j - 1] : 1.0
+    wRaw[j] = wStd[j] / s
+    intercept -= (wStd[j] * mu[j - 1]) / s
+  }
+  wRaw[0] = intercept
+  return wRaw
+}
+
+/**
+ * Maps unstandardized raw weights into standardized predictor space for a given mu and sd:
+ *   w_std[j] = w_raw[j] * sd[j-1]  (for j >= 1)
+ *   w_std[0] = w_raw[0] + sum_{j=1}^{p-1} (w_raw[j] * mu[j-1])
+ */
+export function standardizeWeights(
+  wRaw: Float64Array,
+  mu: Float64Array,
+  sd: Float64Array
+): Float64Array {
+  const p = wRaw.length
+  const wStd = new Float64Array(p)
+  let intercept = wRaw[0]
+  for (let j = 1; j < p; j++) {
+    const s = sd[j - 1] > 1e-9 ? sd[j - 1] : 1.0
+    wStd[j] = wRaw[j] * s
+    intercept += wRaw[j] * mu[j - 1]
+  }
+  wStd[0] = intercept
+  return wStd
+}
+
+/**
  * Coordinate descent ElasticNet solver with soft-thresholding.
  */
 export function solveElasticNet(
@@ -61,6 +112,7 @@ export function solveElasticNet(
   tol = 1e-5
 ): Float64Array {
   const n = X.length
+  if (n === 0) return new Float64Array(0)
   const p = X[0].length
   const w = new Float64Array(p)
 
@@ -135,6 +187,7 @@ export function solveRidge(
   weights?: Float64Array | number[]
 ): Float64Array {
   const n = X.length
+  if (n === 0) return new Float64Array(0)
   const p = X[0].length
 
   // Gram matrix XtX

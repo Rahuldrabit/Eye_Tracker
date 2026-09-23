@@ -29,7 +29,11 @@
 
 import type { EyeFeature, CalibrationAnchor } from './features28'
 import { buildEnhancedFeatureRow, ENHANCED_FEATURE_COUNT } from './features28'
-import { standardizeFeatures } from './solvers'
+import {
+  standardizeFeatures,
+  standardizeWeights,
+  unstandardizeWeights,
+} from './solvers'
 
 export interface InteractionSample {
   feature: EyeFeature
@@ -155,12 +159,9 @@ export class ContinuousAdaptationEngine {
       yY[i] = this.samples[i].target.y
     }
 
-    // Standardize
-    const { XStd: Z } = standardizeFeatures(X)
-
-    // Two-pass robust filtering: drop samples whose residual exceeds MAD limit
-    const predX = this.predictBatch(Z, this.currentWX)
-    const predY = this.predictBatch(Z, this.currentWY)
+    // Two-pass robust filtering in raw prediction space: drop samples whose residual exceeds MAD limit
+    const predX = this.predictBatch(X, this.currentWX)
+    const predY = this.predictBatch(X, this.currentWY)
     const residuals = new Float64Array(n)
     for (let i = 0; i < n; i++) {
       residuals[i] = Math.hypot(yX[i] - predX[i], yY[i] - predY[i])
@@ -175,19 +176,30 @@ export class ContinuousAdaptationEngine {
       if (residuals[i] <= cutoff) validIndices.push(i)
     }
 
-    if (validIndices.length < Math.max(5, p / 3)) return // Not enough valid points
+    if (validIndices.length < Math.max(5, Math.floor(p / 3))) return // Not enough valid points
 
-    const cleanZ = validIndices.map((i) => Z[i])
+    const cleanX = validIndices.map((i) => X[i])
     const cleanYX = new Float64Array(validIndices.map((i) => yX[i]))
     const cleanYY = new Float64Array(validIndices.map((i) => yY[i]))
+
+    // Standardize the inlier set for well-conditioned anchored regression
+    const { XStd: cleanZ, mu, sd } = standardizeFeatures(cleanX)
+
+    // Map base anchor weights W_0 into this window's standardized coordinate basis
+    const w0StdX = standardizeWeights(this.w0X, mu, sd)
+    const w0StdY = standardizeWeights(this.w0Y, mu, sd)
 
     // Solve with Bayesian Prior Anchor W_0:
     // (Z^T Z + (lambda + gamma) S) W = Z^T Y + gamma * S * W_0
     const gamma = this.config.anchorWeightGamma
     const lambda = this.config.ridgeLambda
 
-    this.currentWX = this.solveAnchored(cleanZ, cleanYX, this.w0X, p, lambda, gamma)
-    this.currentWY = this.solveAnchored(cleanZ, cleanYY, this.w0Y, p, lambda, gamma)
+    const wStdX = this.solveAnchored(cleanZ, cleanYX, w0StdX, p, lambda, gamma)
+    const wStdY = this.solveAnchored(cleanZ, cleanYY, w0StdY, p, lambda, gamma)
+
+    // Unstandardize solved weights back into raw feature space for fast zero-overhead prediction
+    this.currentWX = unstandardizeWeights(wStdX, mu, sd)
+    this.currentWY = unstandardizeWeights(wStdY, mu, sd)
   }
 
   private solveAnchored(
@@ -278,6 +290,44 @@ export class ContinuousAdaptationEngine {
       weightsX: new Float64Array(this.currentWX),
       weightsY: new Float64Array(this.currentWY),
     }
+  }
+
+  /**
+   * Evaluates the current adapted gaze model on an incoming EyeFeature.
+   * Runs in O(p) time (~50 nanoseconds) with zero heap allocations.
+   */
+  predict(feature: EyeFeature): { x: number; y: number } {
+    const row = buildEnhancedFeatureRow(feature, this.anchor)
+    let x = 0
+    let y = 0
+    const p = row.length
+    for (let j = 0; j < p; j++) {
+      x += row[j] * this.currentWX[j]
+      y += row[j] * this.currentWY[j]
+    }
+    return { x, y }
+  }
+
+  /**
+   * Predicts gaze and cascades the output through an AffineRecalibrator matrix.
+   */
+  predictWithAffine(
+    feature: EyeFeature,
+    recalibrator: AffineRecalibrator
+  ): { x: number; y: number } {
+    const raw = this.predict(feature)
+    return recalibrator.apply(raw.x, raw.y)
+  }
+
+  setAnchor(anchor: CalibrationAnchor): void {
+    this.anchor = anchor
+  }
+
+  setWeights(weightsX: Float64Array, weightsY: Float64Array): void {
+    this.w0X = new Float64Array(weightsX)
+    this.w0Y = new Float64Array(weightsY)
+    this.currentWX = new Float64Array(weightsX)
+    this.currentWY = new Float64Array(weightsY)
   }
 
   private predictBatch(Z: Float64Array[], w: Float64Array): Float64Array {

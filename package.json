@@ -8,17 +8,19 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
     "./core": {
+      "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js",
-      "types": "./dist/core/index.d.ts"
+      "require": "./dist/core/index.cjs"
     },
     "./web": {
+      "types": "./dist/web/index.d.ts",
       "import": "./dist/web/index.js",
-      "types": "./dist/web/index.d.ts"
+      "require": "./dist/web/index.cjs"
     }
   },
   "repository": {
@@ -46,7 +48,7 @@
     "test": "node --import jiti/register src/__tests__/run_all_tests.ts",
     "benchmark": "node --import jiti/register benchmarks/run_etra_benchmarks.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build"
+    "build": "vite build && tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.18"

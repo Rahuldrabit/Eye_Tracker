@@ -13,6 +13,7 @@ export class CameraManager {
   private stream: MediaStream | null = null
   private running = false
   private animId: number | null = null
+  private rvfcId: number | null = null
 
   async start(
     videoElement: HTMLVideoElement,
@@ -38,24 +39,21 @@ export class CameraManager {
     await this.video.play()
     this.running = true
 
-    const loop = (now: DOMHighResTimeStamp) => {
-      if (!this.running || !this.video) return
-      onFrame(this.video, now)
-
-      // Use requestVideoFrameCallback if supported
-      if ('requestVideoFrameCallback' in this.video) {
-        ;(this.video as any).requestVideoFrameCallback((_: any, metadata: any) => {
-          if (this.running && this.video) {
-            onFrame(this.video, metadata.expectedDisplayTime || performance.now())
-            this.animId = requestAnimationFrame(loop)
-          }
-        })
-      } else {
+    if ('requestVideoFrameCallback' in this.video) {
+      const onVideoFrame = (_now: DOMHighResTimeStamp, metadata: any) => {
+        if (!this.running || !this.video) return
+        onFrame(this.video, metadata.expectedDisplayTime || performance.now())
+        this.rvfcId = (this.video as any).requestVideoFrameCallback(onVideoFrame)
+      }
+      this.rvfcId = (this.video as any).requestVideoFrameCallback(onVideoFrame)
+    } else {
+      const loop = (now: DOMHighResTimeStamp) => {
+        if (!this.running || !this.video) return
+        onFrame(this.video, now)
         this.animId = requestAnimationFrame(loop)
       }
+      this.animId = requestAnimationFrame(loop)
     }
-
-    this.animId = requestAnimationFrame(loop)
   }
 
   stop(): void {
@@ -63,6 +61,10 @@ export class CameraManager {
     if (this.animId !== null) {
       cancelAnimationFrame(this.animId)
       this.animId = null
+    }
+    if (this.rvfcId !== null && this.video && 'cancelVideoFrameCallback' in this.video) {
+      ;(this.video as any).cancelVideoFrameCallback(this.rvfcId)
+      this.rvfcId = null
     }
     if (this.stream) {
       for (const track of this.stream.getTracks()) {

@@ -62,6 +62,17 @@ export class FixationDetector {
     this.activeFixation = null
   }
 
+  /**
+   * Flushes and terminates any active fixation window, returning the completed fixation.
+   * Useful when an eye-tracking session ends or is paused.
+   */
+  flush(): Fixation | null {
+    const finished = this.activeFixation
+    this.window = []
+    this.activeFixation = null
+    return finished
+  }
+
   processSample(sample: GazeSample): Fixation | null {
     // Gap check: blink or lost frame hard-breaks existing window
     if (this.window.length > 0) {

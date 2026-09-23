@@ -3,8 +3,17 @@
  */
 
 import type { EyeFeature, CalibrationAnchor } from './features28'
-import { buildEnhancedFeatureRow, computeCalibrationAnchor } from './features28'
-import { filterMultivariateOutliers } from './solvers'
+import {
+  buildEnhancedFeatureRow,
+  computeCalibrationAnchor,
+  ENHANCED_FEATURE_COUNT,
+} from './features28'
+import {
+  filterMultivariateOutliers,
+  solveElasticNet,
+  standardizeFeatures,
+  unstandardizeWeights,
+} from './solvers'
 
 export interface RawCalibrationSample {
   group: number
@@ -141,3 +150,105 @@ export function cleanCalibrationSamples(
 
   return { cleanedSamples, centroids, anchor: finalAnchor }
 }
+
+export interface TrainedGazeModel {
+  anchor: CalibrationAnchor
+  weightsX: Float64Array
+  weightsY: Float64Array
+  cleanedSamples: RawCalibrationSample[]
+  centroids: RawCalibrationSample[]
+  predict: (feature: EyeFeature) => { x: number; y: number }
+}
+
+export interface TrainModelOptions {
+  l1Ratio?: number
+  alphaX?: number
+  alphaY?: number
+  contamination?: number
+  transitDiscardFrames?: number
+  centroidTrimRatio?: number
+}
+
+/**
+ * Trains a production-ready OpenGaze model from raw calibration samples using the
+ * full robust pipeline:
+ * 1. Saccadic transit trimming
+ * 2. Multivariate anomaly filtering
+ * 3. Trimmed centroid aggregation
+ * 4. Coordinate descent ElasticNet with feature standardization
+ * 5. Weight unstandardization for zero-overhead O(p) inference
+ */
+export function trainGazeModel(
+  rawSamples: RawCalibrationSample[],
+  options: TrainModelOptions = {}
+): TrainedGazeModel {
+  const l1Ratio = options.l1Ratio ?? 0.3
+  const alphaX = options.alphaX ?? 1.5e-3
+  const alphaY = options.alphaY ?? 1.2e-3
+  const contamination = options.contamination ?? 0.05
+  const transitDiscard = options.transitDiscardFrames ?? 2
+  const trimRatio = options.centroidTrimRatio ?? 0.2
+
+  if (rawSamples.length === 0) {
+    const emptyAnchor = computeCalibrationAnchor([])
+    const emptyW = new Float64Array(ENHANCED_FEATURE_COUNT)
+    return {
+      anchor: emptyAnchor,
+      weightsX: emptyW,
+      weightsY: emptyW,
+      cleanedSamples: [],
+      centroids: [],
+      predict: () => ({ x: 0, y: 0 }),
+    }
+  }
+
+  // 1. Transit discard
+  const transitFiltered = filterSaccadicTransit(rawSamples, transitDiscard)
+
+  // 2. Outlier rejection
+  const tempAnchor = computeCalibrationAnchor(transitFiltered)
+  const XRaw = transitFiltered.map((s) => buildEnhancedFeatureRow(s.feature, tempAnchor))
+  const YxRaw = transitFiltered.map((s) => s.target.x)
+  const { inlierIndices } = filterMultivariateOutliers(XRaw, YxRaw, contamination)
+  const inlierSet = new Set(inlierIndices)
+  const cleanedSamples = transitFiltered.filter((_, idx) => inlierSet.has(idx))
+
+  // 3. Trimmed Centroids
+  const centroids = aggregateTargetCentroids(cleanedSamples, trimRatio)
+  const anchor = computeCalibrationAnchor(centroids)
+
+  // 4. Build design matrix and solve ElasticNet
+  const X = centroids.map((s) => buildEnhancedFeatureRow(s.feature, anchor))
+  const Yx = centroids.map((s) => s.target.x)
+  const Yy = centroids.map((s) => s.target.y)
+
+  const { XStd, mu, sd } = standardizeFeatures(X)
+  const wStdX = solveElasticNet(XStd, Yx, l1Ratio, alphaX)
+  const wStdY = solveElasticNet(XStd, Yy, l1Ratio, alphaY)
+
+  // 5. Unstandardize weights into raw space
+  const weightsX = unstandardizeWeights(wStdX, mu, sd)
+  const weightsY = unstandardizeWeights(wStdY, mu, sd)
+
+  const p = ENHANCED_FEATURE_COUNT
+  const predict = (feature: EyeFeature): { x: number; y: number } => {
+    const row = buildEnhancedFeatureRow(feature, anchor)
+    let px = 0
+    let py = 0
+    for (let j = 0; j < p; j++) {
+      px += row[j] * weightsX[j]
+      py += row[j] * weightsY[j]
+    }
+    return { x: px, y: py }
+  }
+
+  return {
+    anchor,
+    weightsX,
+    weightsY,
+    cleanedSamples,
+    centroids,
+    predict,
+  }
+}
+
