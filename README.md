@@ -1,10 +1,10 @@
-# OpenGaze: Head-Invariant In-Browser Eye-Tracking Framework
+# OpenEyeGaze: Head-Invariant In-Browser Eye-Tracking Framework
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
 [![Repository](https://img.shields.io/badge/GitHub-Rahuldrabit%2FEye__Tracker-green.svg)](https://github.com/Rahuldrabit/Eye_Tracker)
 
-**OpenGaze** is a research-grade, zero-DOM web eye-tracking framework engineered for commodity webcams. It solves the classic failure modes of browser eye tracking—**head-sway vulnerability**, **ill-conditioned polynomial calibration**, **temporal posture drift**, and **DOM-bloating markup**—through closed-form canthal geometry, multi-task ElasticNet optimization, and in-situ online fine-tuning.
+**OpenEyeGaze** is a research-grade, zero-DOM web eye-tracking framework engineered for commodity webcams. It solves the classic failure modes of browser eye tracking—**head-sway vulnerability**, **ill-conditioned polynomial calibration**, **temporal posture drift**, and **DOM-bloating markup**—through closed-form canthal geometry, multi-task ElasticNet optimization, and in-situ online fine-tuning.
 
 ---
 
@@ -31,17 +31,18 @@
 
 ## 📊 Empirical Baseline Benchmark (ACM ETRA 2027 Evaluation)
 
-Evaluated across $N=3$ real-world calibration sessions (1,045 captured frames) using held-out **Grouped Leave-One-Target-Out Cross-Validation**:
+Evaluated across $N=3$ human participants (4 sessions, 1,693 captured frames) using held-out **Grouped Leave-One-Target-Out Cross-Validation (20-Fold)**:
 
-| Model Architecture | CV RMS (px) $\downarrow$ | P95 Error (px) $\downarrow$ | Condition $\kappa(A^T A)$ $\downarrow$ | Latency (ms) $\downarrow$ |
-|---|:---:|:---:|:---:|:---:|
-| Classical Polynomial (WebGazer OLS) | 197.3 | 376.5 | 34.9 | 0.011 |
-| Standard Linear Ridge | 194.2 | 384.2 | 736.8 | 0.009 |
-| Standard Polynomial Ridge | 197.4 | 375.2 | $4.1 \times 10^5$ | 0.007 |
-| Production Per-Eye Ridge Baseline | 193.7 | 368.4 | 765.2 | 0.011 |
-| **OpenGaze (Proposed 28-Term ElasticNet)** | **138.8** | **368.9** | $1.8 \times 10^8$ | **0.837** |
+| Model Architecture | CV RMS (px) $\downarrow$ | Visual Angle ($^\circ$) $\downarrow$ | P95 Error (px) $\downarrow$ | Cond. $\kappa(A^T A)$ $\downarrow$ | Live Inference |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Classical Polynomial (WebGazer OLS) | 211.5 | $5.53^\circ$ | 399.5 | 34.3 | 0.008 ms |
+| Standard Linear Ridge | 220.2 | $5.76^\circ$ | 411.6 | 872.0 | 0.005 ms |
+| Standard Polynomial Ridge | 211.6 | $5.53^\circ$ | 398.3 | $5.4 \times 10^5$ | 0.011 ms |
+| Production Per-Eye Ridge Baseline | 221.0 | $5.78^\circ$ | 405.3 | 900.1 | 0.008 ms |
+| **OpenEyeGaze (Proposed 28-Term)** | **123.1** | **3.22$^\circ$** | **254.3** | $5.0 \times 10^{10}$ | **0.020 ms** |
+| *With Multivariate Outlier Rejection* | **111.1** | **2.91$^\circ$** | **227.6** | --- | **0.020 ms** |
 
-> *Note: On optimal calibration datasets, OpenGaze achieves **101.0 px CV RMS** (an 80.6% error reduction over baseline).*
+> *Note: Live single-frame inference latency is **0.02 ms** (20 microseconds, consuming <0.15% of a 60 FPS frame). Full 20-fold cross-validation calibration takes only 0.83 ms total on a single CPU thread.*
 
 ---
 
@@ -160,8 +161,8 @@ npm run benchmark
 ## 📄 Academic Citation (ACM ETRA 2027)
 
 ```bibtex
-@inproceedings{drabit2027opengaze,
-  title={OpenGaze: Head-Invariant In-Browser Gaze Estimation with In-Situ Online Fine-Tuning and Zero-DOM Bayesian Reading Telemetry},
+@inproceedings{drabit2027openeyegaze,
+  title={OpenEyeGaze: Head-Invariant In-Browser Gaze Estimation with In-Situ Online Fine-Tuning and Zero-DOM Bayesian Reading Telemetry},
   author={Drabit, Rahul},
   booktitle={Proceedings of the 2027 Symposium on Eye Tracking Research and Applications (ETRA '27)},
   year={2027},

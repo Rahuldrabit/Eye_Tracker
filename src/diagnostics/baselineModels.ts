@@ -327,9 +327,9 @@ export function evaluatePerEyeRidge(samples: RawCalibrationSample[]): ModelBench
 }
 
 /**
- * 5. Proposed OpenGaze 28-Term ElasticNet with Saccadic Transit Discard + Centroids
+ * 5. Proposed OpenEyeGaze 28-Term ElasticNet with Saccadic Transit Discard + Centroids
  */
-export function evaluateProposedOpenGaze(rawSamples: RawCalibrationSample[]): ModelBenchmarkRow {
+export function evaluateProposedOpenEyeGaze(rawSamples: RawCalibrationSample[]): ModelBenchmarkRow {
   const t0 = performance.now()
   const cleaned = filterSaccadicTransit(rawSamples, 3)
   const centroids = aggregateTargetCentroids(cleaned, 0.2)
@@ -378,8 +378,8 @@ export function evaluateProposedOpenGaze(rawSamples: RawCalibrationSample[]): Mo
   const sorted = [...errorsEuc].sort((a, b) => a - b)
 
   return {
-    modelId: 'Proposed-OpenGaze-28Term',
-    modelName: 'OpenGaze (Proposed 28-Term ElasticNet)',
+    modelId: 'Proposed-OpenEyeGaze-28Term',
+    modelName: 'OpenEyeGaze (Proposed 28-Term ElasticNet)',
     cvRmsPx: rms(errorsEuc),
     p95ErrorPx: sorted[Math.floor(sorted.length * 0.95)] || 0,
     cvErrorXPx: rms(errorsX),

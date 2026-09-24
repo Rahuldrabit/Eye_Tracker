@@ -1,5 +1,5 @@
 /**
- * @opengaze/web — Browser & DOM Telemetry Layer.
+ * @openeyegaze/web — Browser & DOM Telemetry Layer.
  */
 
 export * from './camera'

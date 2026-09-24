@@ -170,7 +170,7 @@ export interface TrainModelOptions {
 }
 
 /**
- * Trains a production-ready OpenGaze model from raw calibration samples using the
+ * Trains a production-ready OpenEyeGaze model from raw calibration samples using the
  * full robust pipeline:
  * 1. Saccadic transit trimming
  * 2. Multivariate anomaly filtering

@@ -1,7 +1,7 @@
 {
   "name": "@rahuldrabit/eye-tracker",
   "version": "1.0.0",
-  "description": "OpenGaze: High-precision, head-invariant web eye-tracking framework with in-situ online fine-tuning and zero-DOM Bayesian reading telemetry.",
+  "description": "OpenEyeGaze: High-precision, head-invariant web eye-tracking framework with in-situ online fine-tuning and zero-DOM Bayesian reading telemetry.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

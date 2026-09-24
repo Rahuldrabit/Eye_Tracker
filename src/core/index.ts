@@ -1,5 +1,5 @@
 /**
- * @opengaze/core — Headless Mathematical Engine for Web Gaze Estimation.
+ * @openeyegaze/core — Headless Mathematical Engine for Web Gaze Estimation.
  */
 
 export * from './canthal'

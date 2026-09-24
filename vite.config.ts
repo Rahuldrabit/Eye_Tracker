@@ -9,7 +9,7 @@ export default defineConfig({
         'core/index': resolve(__dirname, 'src/core/index.ts'),
         'web/index': resolve(__dirname, 'src/web/index.ts'),
       },
-      name: 'OpenGaze',
+      name: 'OpenEyeGaze',
       formats: ['es', 'cjs'],
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },

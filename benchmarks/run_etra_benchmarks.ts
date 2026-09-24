@@ -24,7 +24,7 @@ import {
   evaluateLinearRidge,
   evaluatePolynomialRidge,
   evaluatePerEyeRidge,
-  evaluateProposedOpenGaze,
+  evaluateProposedOpenEyeGaze,
   type ModelBenchmarkRow,
 } from '../src/diagnostics/baselineModels'
 import type { RawCalibrationSample } from '../src/core/modelSelection'
@@ -74,7 +74,7 @@ for (const fileName of dataFiles) {
     evaluateLinearRidge(samples),
     evaluatePolynomialRidge(samples),
     evaluatePerEyeRidge(samples),
-    evaluateProposedOpenGaze(samples),
+    evaluateProposedOpenEyeGaze(samples),
   ]
 
   for (const r of rows) {
@@ -155,7 +155,7 @@ let texTable = `\\begin{table}[t]
 `
 
 for (const r of finalRows) {
-  const isProposed = r.name.includes('OpenGaze')
+  const isProposed = r.name.includes('OpenEyeGaze')
   const nameStr = isProposed ? `\\textbf{${r.name}}` : r.name
   const rmsStr = isProposed ? `\\textbf{${r.cvRms.toFixed(1)}}` : r.cvRms.toFixed(1)
   const p95Str = isProposed ? `\\textbf{${r.p95.toFixed(1)}}` : r.p95.toFixed(1)
@@ -179,13 +179,13 @@ console.log(`\n[SUCCESS] Exported LaTeX table to: ${texPath}`)
 // ----------------------------------------------------------------------
 const ablationTex = `\\begin{table}[t]
 \\centering
-\\caption{Systematic Component Ablation Analysis of the Proposed OpenGaze Engine.}
+\\caption{Systematic Component Ablation Analysis of the Proposed OpenEyeGaze Engine.}
 \\label{tab:ablation_study}
 \\begin{tabular}{lccc}
 \\toprule
 \\textbf{Configuration Variant} & \\textbf{CV RMS (px)} $\\downarrow$ & \\textbf{P95 Error (px)} $\\downarrow$ & \\textbf{Degradation (\\%)} \\\\
 \\midrule
-\\textbf{Full Proposed OpenGaze} & \\textbf{107.7} & \\textbf{220.1} & --- \\\\
+\\textbf{Full Proposed OpenEyeGaze} & \\textbf{107.7} & \\textbf{220.1} & --- \\\\
 w/o Saccadic Transit Discard (3 frames) & 158.4 & 342.6 & +47.1\\% \\\\
 w/o Trimmed-Mean Centroid Aggregation & 216.5 & 492.3 & +101.0\\% \\\\
 w/o $\\ell_1$ Sparsity (Pure $\\ell_2$ Ridge) & 124.8 & 265.4 & +15.9\\% \\\\

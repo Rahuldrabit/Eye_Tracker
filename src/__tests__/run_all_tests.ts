@@ -1,5 +1,5 @@
 /**
- * run_all_tests.ts — Comprehensive Test Suite for OpenGaze Framework.
+ * run_all_tests.ts — Comprehensive Test Suite for OpenEyeGaze Framework.
  */
 
 import { projectCanthalGaze } from '../core/canthal'
@@ -30,7 +30,7 @@ import { ReadingLineSnapper } from '../web/lineSnapper'
 import { attributeFixationToText } from '../web/bayesianAOI'
 
 console.log('========================================================================')
-console.log('       RUNNING OPENGAZE STANDALONE FRAMEWORK MASTER TEST SUITE          ')
+console.log('     RUNNING OPENEYEGAZE STANDALONE FRAMEWORK MASTER TEST SUITE         ')
 console.log('========================================================================\n')
 
 let passCount = 0
