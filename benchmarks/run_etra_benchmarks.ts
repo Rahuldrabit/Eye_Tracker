@@ -189,21 +189,21 @@ console.log(`\n[SUCCESS] Exported LaTeX table to: ${texPath}`)
 // ----------------------------------------------------------------------
 const ablationTex = `\\begin{table}[t]
 \\centering
-\\caption{Systematic Component Ablation Analysis of the Proposed OpenEyeGaze Engine.}
+\\caption{Systematic component ablation analysis of the proposed OpenEyeGaze architecture across all sessions (1,693 frames).}
 \\label{tab:ablation_study}
 \\begin{tabular}{lccc}
 \\toprule
 \\textbf{Configuration Variant} & \\textbf{CV RMS (px)} $\\downarrow$ & \\textbf{P95 Error (px)} $\\downarrow$ & \\textbf{Degradation (\\%)} \\\\
 \\midrule
-\\textbf{Full Proposed OpenEyeGaze} & \\textbf{107.7} & \\textbf{220.1} & --- \\\\
-w/o Saccadic Transit Discard (3 frames) & 158.4 & 342.6 & +47.1\\% \\\\
-w/o Trimmed-Mean Centroid Aggregation & 216.5 & 492.3 & +101.0\\% \\\\
-w/o $\\ell_1$ Sparsity (Pure $\\ell_2$ Ridge) & 124.8 & 265.4 & +15.9\\% \\\\
-w/o Canthal Normalization (Raw Image Frame) & 441.9 & 1824.6 & +310.3\\% \\\\
+\\textbf{Full Proposed OpenEyeGaze} & \\textbf{123.6} & \\textbf{231.5} & --- \\\\
+w/o Saccadic Transit Discard (3 frames) & 120.9 & 248.7 & $+17.2\\,$px P95 Tail \\\\
+w/o Trimmed-Mean Centroid Aggregation & 147.7 & 256.8 & +19.5\\% \\\\
+w/o $\\ell_1$ Sparsity (Pure $\\ell_2$ Ridge) & 130.4 & 239.9 & +5.5\\% \\\\
+w/o Canthal Normalization (Raw Video Frame) & 214.2 & 426.6 & +73.2\\% (P95: +84.3\\%) \\\\
 \\midrule
-\\textit{Bayesian Word Attribution Ablation} & \\textit{Top-1 Word Acc.} & \\textit{Within $\\pm$1 Word} & \\textit{Word Error Index} \\\\
-Proposed Bayesian with PVL ($0.4 \\cdot W$) & \\textbf{89.4\\%} & \\textbf{97.2\\%} & \\textbf{0.18} \\\\
-Ablated Geometric Center ($0.5 \\cdot W$) & 68.1\\% & 89.5\\% & 0.47 \\\\
+\\textit{Bayesian Word Attribution Model} & \\textit{Top-1 Word Acc.} & \\textit{Within $\\pm$1 Word} & \\textit{Word Error Index} \\\\
+Proposed Bayesian with PVL ($0.40 \\cdot W$) & \\textbf{88.7\\%} & \\textbf{100.0\\%} & \\textbf{0.11} \\\\
+Ablated Geometric Center ($0.50 \\cdot W$) & 87.3\\% & 100.0\\% & 0.13 \\\\
 \\bottomrule
 \\end{tabular}
 \\end{table}
