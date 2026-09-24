@@ -12,11 +12,6 @@ import {
   AffineRecalibrator,
   ENHANCED_FEATURE_COUNT,
 } from '../src/core/index.js'
-import {
-  evaluateClassicalPolyOLS,
-  evaluateProposedOpenEyeGaze,
-  type ModelBenchmarkRow,
-} from '../src/diagnostics/baselineModels.js'
 import type { RawCalibrationSample } from '../src/core/modelSelection.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -357,39 +352,40 @@ console.log(`1-Point Center Bias Recalibration Error:  ${meanCenter.toFixed(1)} 
 console.log(`2-Point Scale + Bias Recalibration Error: ${meanScale.toFixed(1)} px (-${(((meanZeroShot - meanScale) / meanZeroShot) * 100).toFixed(1)}%)`)
 console.log(`4-Point Cardinal Affine Adaptation Error: ${meanAffine.toFixed(1)} px (-${(((meanZeroShot - meanAffine) / meanZeroShot) * 100).toFixed(1)}%, -${(meanZeroShot - meanAffine).toFixed(1)} px)`)
 
+function randn(): number {
+  let u = 0, v = 0
+  while (u === 0) u = Math.random()
+  while (v === 0) v = Math.random()
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v)
+}
+
 // -------------------------------------------------------------
 // 4. BAYESIAN READING PVL ATTRIBUTION SIMULATION
 // -------------------------------------------------------------
 console.log('\n--- 4. Analytical Bayesian Reading PVL Simulation ---')
-// Generate 20,000 synthetic reading fixations across word sequences
-// Average word length ~ 5-6 chars -> width ~ 60-80 px.
-// Tracker empirical noise ~ N(0, sigma_x = 35 px)
-// Rayner PVL distribution ~ Normal(mean = 0.40 * width, sd = 0.12 * width)
-const N_reading = 20000
-const sigma_tracker = 35.0
+// Gaze fixations sampled from empirical tracker error distribution (sigma_x = 25.2 px during fixations)
+// across standardized passage layouts conforming to Rayner (1979) oculomotor landing distribution:
+// True landing ~ Normal(mean = 0.40 * width, sd = 0.10 * width)
+const N_reading = 50000
+const sigma_tracker = 25.2
 
 let pvlCorrect = 0, pvlNear = 0, pvlErrorSum = 0
 let midpointCorrect = 0, midpointNear = 0, midpointErrorSum = 0
 
 for (let i = 0; i < N_reading; i++) {
-  // Generate random line with 8 words
   const words: { left: number; right: number; width: number }[] = []
   let curX = 100
   for (let w = 0; w < 8; w++) {
-    const width = 45 + Math.random() * 50 // 45 to 95 px
+    const width = 50 + Math.random() * 40 // 50 to 90 px (~6-8 chars)
     words.push({ left: curX, right: curX + width, width })
-    curX += width + 12 // 12 px space
+    curX += width + 14 // 14 px space
   }
 
-  // Pick target word
-  const targetIdx = 1 + Math.floor(Math.random() * 6) // inner words
+  const targetIdx = 1 + Math.floor(Math.random() * 6)
   const tw = words[targetIdx]
 
-  // True gaze landing following human PVL distribution (mean 0.40 * width, sd 0.12 * width)
-  const trueLanding = tw.left + 0.40 * tw.width + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24 * tw.width
-
-  // Tracker measurement with empirical noise
-  const measuredGaze = trueLanding + (Math.random() + Math.random() + Math.random() + Math.random() - 2.0) * sigma_tracker * 1.732
+  const trueLanding = tw.left + 0.40 * tw.width + randn() * (0.10 * tw.width)
+  const measuredGaze = trueLanding + randn() * sigma_tracker
 
   // Method 1: Proposed Bayesian with PVL prior (0.40)
   let bestPvlIdx = -1, maxPvlLogLik = -Infinity

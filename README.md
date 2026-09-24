@@ -149,7 +149,7 @@ if (attribution.level === 'word') {
 ## 🧪 Running Benchmarks & Tests
 
 ```bash
-# Run complete unit and integration test suite (52 tests)
+# Run complete unit and integration test suite (64 tests)
 npm test
 
 # Run empirical ACM ETRA benchmark suite across calibration datasets
